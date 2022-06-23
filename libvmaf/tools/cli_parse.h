@@ -35,6 +35,7 @@ typedef struct {
     unsigned width, height;
     enum VmafPixelFormat pix_fmt;
     unsigned bitdepth;
+    bool align_bitdepth_in_y4m;
     bool use_yuv;
     char *output_path;
     enum VmafOutputFormat output_fmt;

@@ -26,6 +26,7 @@ enum {
     ARG_AOM_CTC,
     ARG_FRAME_CNT,
     ARG_SKIP_REF_FRAME,
+    ARG_ALIGN_BITDEPTH_IN_Y4M,
 };
 
 static const struct option long_opts[] = {
@@ -48,6 +49,7 @@ static const struct option long_opts[] = {
     { "aom_ctc",          1, NULL, ARG_AOM_CTC },
     { "frame_cnt",        1, NULL, ARG_FRAME_CNT },
     { "skip_ref_frame",   1, NULL, ARG_SKIP_REF_FRAME },
+    { "align_bitdepth_in_y4m",   0, NULL, ARG_ALIGN_BITDEPTH_IN_Y4M },
     { "no_prediction",    0, NULL, 'n' },
     { "version",          0, NULL, 'v' },
     { "quiet",            0, NULL, 'q' },
@@ -70,6 +72,7 @@ static void usage(const char *const app, const char *const reason, ...) {
             " --height/-h $unsigned:     height\n"
             " --pixel_format/-p: $string pixel format (420/422/444)\n"
             " --bitdepth/-b $unsigned:   bitdepth (8/10/12/16)\n"
+            " --align_bitdepth_in_y4m    use higher bitdepth when different in Y4M\n"
             " --model/-m $params:        model parameters, colon \":\" delimited\n"
             "                            `path=` path to model file\n"
             "                            `version=` built-in model version\n"
@@ -405,6 +408,9 @@ void cli_parse(const int argc, char *const *const argv,
             break;
         case ARG_SKIP_REF_FRAME:
             settings->skip_ref_frame = parse_unsigned(optarg, ARG_SKIP_REF_FRAME, argv[0]);
+            break;
+        case ARG_ALIGN_BITDEPTH_IN_Y4M:
+            settings->align_bitdepth_in_y4m = true;
             break;
         case 'n':
             settings->no_prediction = true;
