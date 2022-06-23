@@ -24,7 +24,7 @@ static enum VmafPixelFormat pix_fmt_map(int pf)
     }
 }
 
-static int validate_videos(video_input *vid1, video_input *vid2)
+static int validate_videos(video_input *vid1, video_input *vid2, bool align_bitdepth_in_y4m)
 {
     int err_cnt = 0;
 
@@ -49,9 +49,10 @@ static int validate_videos(video_input *vid1, video_input *vid2)
         err_cnt++;
     }
 
-    if (info1.depth != info2.depth) {
+    if (info1.depth != info2.depth && !align_bitdepth_in_y4m) {
         fprintf(stderr, "bitdepths do not match: %d, %d\n",
                 info1.depth, info2.depth);
+        fprintf(stderr, "may try --align_bitdepth_in_y4m for y4m files\n");
         err_cnt++;
     }
 
@@ -65,7 +66,7 @@ static int validate_videos(video_input *vid1, video_input *vid2)
     return err_cnt;
 }
 
-static int fetch_picture(video_input *vid, VmafPicture *pic)
+static int fetch_picture(video_input *vid, VmafPicture *pic, int dst_bitdepth)
 {
     int ret;
     video_input_ycbcr ycbcr;
@@ -75,7 +76,7 @@ static int fetch_picture(video_input *vid, VmafPicture *pic)
     if (ret < 1) return !ret;
 
     video_input_get_info(vid, &info);
-    ret = vmaf_picture_alloc(pic, pix_fmt_map(info.pixel_fmt), info.depth,
+    ret = vmaf_picture_alloc(pic, pix_fmt_map(info.pixel_fmt), dst_bitdepth,
                              info.pic_w, info.pic_h);
     if (ret) {
         fprintf(stderr, "problem allocating picture.\n");
@@ -91,12 +92,26 @@ static int fetch_picture(video_input *vid, VmafPicture *pic)
                 (info.pic_y >> ydec) * ycbcr[i].stride +
                 (info.pic_x * xstride >> xdec);
             // ^ gross, but this is how the daala y4m API works. FIXME.
-            uint8_t *pic_data = pic->data[i];
-
-            for (unsigned j = 0; j < pic->h[i]; j++) {
-                memcpy(pic_data, ycbcr_data, sizeof(*pic_data) * pic->w[i]);
-                pic_data += pic->stride[i];
-                ycbcr_data += ycbcr[i].stride;
+            
+            if (dst_bitdepth == 8) {
+	        uint8_t *pic_data = pic->data[i];
+	        
+	        for (unsigned j = 0; j < pic->h[i]; j++) {
+	            memcpy(pic_data, ycbcr_data, sizeof(*pic_data) * pic->w[i]);
+	            pic_data += pic->stride[i];
+	            ycbcr_data += ycbcr[i].stride;
+		}
+            } else {
+                uint16_t *pic_data = pic->data[i];
+                int shift = dst_bitdepth - info.depth;
+                
+                for (unsigned j = 0; j < pic->h[i]; j++) {
+                    for (unsigned x = 0; x < pic->w[i]; x++) {
+                        pic_data[x] = ((uint16_t)ycbcr_data[x]) << shift;
+                    }
+		    pic_data += pic->stride[i] / 2;
+	            ycbcr_data += ycbcr[i].stride;
+		}
             }
         }
     } else {
@@ -110,10 +125,21 @@ static int fetch_picture(video_input *vid, VmafPicture *pic)
             // ^ gross, but this is how the daala y4m API works. FIXME.
             uint16_t *pic_data = pic->data[i];
 
-            for (unsigned j = 0; j < pic->h[i]; j++) {
-                memcpy(pic_data, ycbcr_data, sizeof(*pic_data) * pic->w[i]);
-                pic_data += pic->stride[i] / 2;
-                ycbcr_data += ycbcr[i].stride / 2;
+            int shift = dst_bitdepth - info.depth;
+            if (shift == 0) {            
+                for (unsigned j = 0; j < pic->h[i]; j++) {
+                    memcpy(pic_data, ycbcr_data, sizeof(*pic_data) * pic->w[i]);
+                    pic_data += pic->stride[i] / 2;
+                    ycbcr_data += ycbcr[i].stride / 2;
+                }
+            } else {
+                for (unsigned j = 0; j < pic->h[i]; j++) {
+                    for (unsigned x = 0; x < pic->w[i]; x++) {
+                        pic_data[x] = ycbcr_data[x] << shift;
+                    }
+                    pic_data += pic->stride[i] / 2;
+                    ycbcr_data += ycbcr[i].stride / 2;
+                }
             }
         }
     }
@@ -169,7 +195,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    err = validate_videos(&vid_ref, &vid_dist);
+    err = validate_videos(&vid_ref, &vid_dist, !c.use_yuv && c.align_bitdepth_in_y4m);
     if (err) {
         fprintf(stderr, "videos are incompatible, %d %s.\n",
                 err, err == 1 ? "problem" : "problems");
@@ -305,12 +331,21 @@ int main(int argc, char *argv[])
             return -1;
         }
     }
-
+    
+    int dst_bitdepth = c.bitdepth;
+    if (dst_bitdepth == 0 || c.align_bitdepth_in_y4m) {
+        video_input_info info;
+        video_input_get_info(&vid_ref, &info);
+        dst_bitdepth = dst_bitdepth > info.depth ? dst_bitdepth : info.depth;
+        video_input_get_info(&vid_dist, &info);
+        dst_bitdepth = dst_bitdepth > info.depth ? dst_bitdepth : info.depth;
+    }
+    
     if (c.skip_ref_frame > 0) {
     	printf("reference skip %d frames\n", c.skip_ref_frame);
     	for (unsigned i = 0; i < c.skip_ref_frame; i++) {
     		VmafPicture pic_ref;
-    		fetch_picture(&vid_ref, &pic_ref);
+    		fetch_picture(&vid_ref, &pic_ref, dst_bitdepth);
     	}
     }
 
@@ -323,8 +358,8 @@ int main(int argc, char *argv[])
             break;
 
         VmafPicture pic_ref, pic_dist;
-        int ret1 = fetch_picture(&vid_ref, &pic_ref);
-        int ret2 = fetch_picture(&vid_dist, &pic_dist);
+        int ret1 = fetch_picture(&vid_ref, &pic_ref, dst_bitdepth);
+        int ret2 = fetch_picture(&vid_dist, &pic_dist, dst_bitdepth);
 
         if (ret1 && ret2) {
             break;
