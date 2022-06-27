@@ -393,6 +393,9 @@ int main(int argc, char *argv[])
             fprintf(stderr, "\nproblem reading pictures\n");
             break;
         }
+        for (unsigned i = 1; i < c.subsample_ref; i++) {
+            ret1 = fetch_picture(&vid_ref, &pic_ref, dst_bitdepth);
+        }
     }
     if (istty && !c.quiet)
         fprintf(stderr, "\n");

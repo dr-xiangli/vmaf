@@ -45,6 +45,7 @@ typedef struct {
     unsigned feature_cnt;
     enum VmafLogLevel log_level;
     unsigned subsample;
+    unsigned subsample_ref;
     unsigned thread_cnt;
     bool no_prediction;
     bool quiet;
