@@ -22,6 +22,7 @@ enum {
     ARG_THREADS,
     ARG_FEATURE,
     ARG_SUBSAMPLE,
+    ARG_SUBSAMPLE_REF,
     ARG_CPUMASK,
     ARG_AOM_CTC,
     ARG_FRAME_CNT,
@@ -45,6 +46,7 @@ static const struct option long_opts[] = {
     { "threads",          1, NULL, ARG_THREADS },
     { "feature",          1, NULL, ARG_FEATURE },
     { "subsample",        1, NULL, ARG_SUBSAMPLE },
+    { "subsample_ref",    1, NULL, ARG_SUBSAMPLE_REF },
     { "cpumask",          1, NULL, ARG_CPUMASK },
     { "aom_ctc",          1, NULL, ARG_AOM_CTC },
     { "frame_cnt",        1, NULL, ARG_FRAME_CNT },
@@ -88,6 +90,7 @@ static void usage(const char *const app, const char *const reason, ...) {
             " --frame_cnt $unsigned:     maximum number of frames to process\n"
             " --skip_ref_frame $unsigned:skip N frames in reference\n"
             " --subsample: $unsigned     compute scores only every N frames\n"
+            " --subsample_ref: unsigned  compute scores only every N ref frames\n"
             " --quiet/-q:                disable FPS meter when run in a TTY\n"
             " --no_prediction/-n:        no prediction, extract features only\n"
             " --version/-v:              print version and exit\n"
@@ -395,6 +398,9 @@ void cli_parse(const int argc, char *const *const argv,
             break;
         case ARG_SUBSAMPLE:
             settings->subsample = parse_unsigned(optarg, 's', argv[0]);
+            break;
+        case ARG_SUBSAMPLE_REF:
+            settings->subsample_ref = parse_unsigned(optarg, ARG_SUBSAMPLE_REF, argv[0]);
             break;
         case ARG_CPUMASK:
             settings->cpumask = parse_unsigned(optarg, 'c', argv[0]);
