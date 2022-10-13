@@ -346,6 +346,7 @@ int main(int argc, char *argv[])
     	for (unsigned i = 0; i < c.skip_ref_frame; i++) {
     		VmafPicture pic_ref;
     		fetch_picture(&vid_ref, &pic_ref, dst_bitdepth);
+            vmaf_picture_unref(&pic_ref);
     	}
     }
 
