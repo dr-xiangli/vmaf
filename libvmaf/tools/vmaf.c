@@ -94,13 +94,13 @@ static int fetch_picture(video_input *vid, VmafPicture *pic, int dst_bitdepth)
             // ^ gross, but this is how the daala y4m API works. FIXME.
             
             if (dst_bitdepth == 8) {
-	        uint8_t *pic_data = pic->data[i];
+                uint8_t *pic_data = pic->data[i];
 	        
-	        for (unsigned j = 0; j < pic->h[i]; j++) {
-	            memcpy(pic_data, ycbcr_data, sizeof(*pic_data) * pic->w[i]);
-	            pic_data += pic->stride[i];
-	            ycbcr_data += ycbcr[i].stride;
-		}
+                for (unsigned j = 0; j < pic->h[i]; j++) {
+                    memcpy(pic_data, ycbcr_data, sizeof(*pic_data) * pic->w[i]);
+                    pic_data += pic->stride[i];
+                    ycbcr_data += ycbcr[i].stride;
+                }
             } else {
                 uint16_t *pic_data = pic->data[i];
                 int shift = dst_bitdepth - info.depth;
@@ -109,9 +109,9 @@ static int fetch_picture(video_input *vid, VmafPicture *pic, int dst_bitdepth)
                     for (unsigned x = 0; x < pic->w[i]; x++) {
                         pic_data[x] = ((uint16_t)ycbcr_data[x]) << shift;
                     }
-		    pic_data += pic->stride[i] / 2;
-	            ycbcr_data += ycbcr[i].stride;
-		}
+                    pic_data += pic->stride[i] / 2;
+                    ycbcr_data += ycbcr[i].stride;
+                }
             }
         }
     } else {
@@ -119,9 +119,9 @@ static int fetch_picture(video_input *vid, VmafPicture *pic, int dst_bitdepth)
             int xdec = i&&!(info.pixel_fmt&1);
             int ydec = i&&!(info.pixel_fmt&2);
             int xstride = info.depth > 8 ? 2 : 1;
-            uint16_t *ycbcr_data = (uint16_t*) ycbcr[i].data +
+            uint16_t *ycbcr_data = (uint16_t*)(ycbcr[i].data +
                 (info.pic_y >> ydec) * (ycbcr[i].stride / 2) +
-                (info.pic_x * xstride >> xdec);
+                (info.pic_x * xstride >> xdec));
             // ^ gross, but this is how the daala y4m API works. FIXME.
             uint16_t *pic_data = pic->data[i];
 
